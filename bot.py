@@ -4,7 +4,7 @@ import random
 import os
 from dotenv import load_dotenv
 from datetime import time
-from httpx import Timeout
+from telegram.request import HTTPXRequest
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,8 +12,10 @@ load_dotenv()
 # Get the Telegram bot token from the environment variable
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
+trequest = HTTPXRequest(connection_pool_size=20, read_timeout=60, write_timeout=60, connect_timeout=60, pool_timeout=60, media_write_timeout=60)
+
 # Initialize the bot with your token
-application = Application.builder().token(TELEGRAM_BOT_TOKEN).read_timeout(60).write_timeout(60).build()
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).request(request=trequest).build()
 
 # Function to send a random message from a file
 async def send_random_message(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
@@ -64,7 +66,7 @@ application.add_handler(CommandHandler('new', new_command))
 
 # Schedule the job to run at a specific time
 job_queue = application.job_queue
-job_queue.run_daily(scheduled_job, time=time(hour=21, minute=45), days=(0, 1, 2, 3, 4, 5, 6))
+job_queue.run_daily(scheduled_job, time=time(hour=22, minute=58), days=(0, 1, 2, 3, 4, 5, 6))
 
 # Run the bot
 print("Bot is running...")
