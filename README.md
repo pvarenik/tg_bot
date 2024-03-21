@@ -10,7 +10,12 @@ python3 bot_v2_with_threads.py
 
 #### Run via docker
 ```
-docker stop tg-bot ; docker rm -vf tg-bot ; docker image build -t tg-bot . && docker container run -d --name tg-bot --env-file .env tg-bot
+docker stop tg-bot ; docker rm -vf tg-bot ; docker image build -t tg-bot . && docker container run -d -v $(pwd):/app --name tg-bot --env-file .env tg-bot
+```
+
+#### Run via docker-compose
+```
+docker-compose up -d
 ```
 
 #### Commands
