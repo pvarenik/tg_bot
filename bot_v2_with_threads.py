@@ -32,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Varenik Shutit -  a bot for receiving witty jokes or for their scheduled delivery
 
 /start - Information.
-/start_scheduled_messages [time] - Start scheduling messages. If no time is provided, it defaults to 9:00.
+/start_scheduled_messages [time] [time_zone]- Start scheduling messages. If no time is provided, it defaults to 9:00 and Europe/Minsk.
 /new - Send a random message immediately.
 /stop_scheduled_messages - Stop the scheduled messages in the current chat.
 /list - List of scheduled jobs.
@@ -42,7 +42,7 @@ Varenik Shutit -  a bot for receiving witty jokes or for their scheduled deliver
 Вареник Шутит - бот для получения остроумных шуток или для их запланированной отправки
 
 /start - Информация.
-/start_scheduled_messages [время] - Начать планирование сообщений. Если время не указано, оно по умолчанию будет 9:00.
+/start_scheduled_messages [время] [часовой_пояс] - Начать планирование сообщений. Если время не указано, оно по умолчанию будет 9:00 и Europe/Minsk.
 /new - Отправить случайное сообщение немедленно.
 /stop_scheduled_messages - Остановить запланированные сообщения в текущем чате.
 /list - Список запланированных рассылок.
@@ -53,9 +53,10 @@ Varenik Shutit -  a bot for receiving witty jokes or for their scheduled deliver
 async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):    
     print(update.effective_chat)
     chat_id = update.effective_chat.id
-    job_time = context.args[0] if context.args else '09:00'
-    schedule_message(context.bot, chat_id, job_time)
-    await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages will start at {job_time}.\nРассылка сообщений будет осуществляться в {job_time}")
+    job_time = context.args[0] if len(context.args) > 0 else '09:00'
+    job_tz = context.args[1] if len(context.args) > 1 else 'Europe/Minsk'
+    schedule_message(context.bot, chat_id, job_time, job_tz)
+    await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages will start at {job_time} {job_tz}.\nРассылка сообщений будет осуществляться в {job_time} {job_tz}")
     
 # Function to save scheduled jobs to a file
 def save_scheduled_jobs(file_path='scheduled_jobs.json'):
@@ -69,7 +70,7 @@ def load_scheduled_jobs(bot, file_path='scheduled_jobs.json'):
             json_schedule = json.load(file)
             for chat_id in json_schedule:
                 for job_time in json_schedule[chat_id]:
-                    schedule_message(bot, chat_id, job_time)
+                    schedule_message(bot, chat_id, job_time[0], job_time[1])
     else:
         logger.warn(f'The file {file_path} does not exist.')
         
@@ -112,15 +113,15 @@ def read_messages_from_file(file_path='content.txt'):
     return messages
 
 # Function to schedule a message
-def schedule_message(bot, chat_id, job_time):    
+def schedule_message(bot, chat_id, job_time, job_tz):    
     job_name = f'daily-message-{chat_id}'
     send_scheduled_message_partial = partial(run_scheduled_message_thread, bot=bot, chat_id=chat_id)
-    schedule.every().day.at(job_time, "Europe/Minsk").do(send_scheduled_message_partial).tag(job_name)
+    schedule.every().day.at(job_time, job_tz).do(send_scheduled_message_partial).tag(job_name)
     
      # Add the job to the list of scheduled jobs for the chat
     if str(chat_id) not in scheduled_jobs:
         scheduled_jobs[str(chat_id)] = []
-    scheduled_jobs[str(chat_id)].append(job_time)
+    scheduled_jobs[str(chat_id)].append([job_time, job_tz])
     
      # Save the scheduled jobs to a file
     save_scheduled_jobs()
@@ -153,7 +154,7 @@ def main():
     
      # Register the command handlers with the dispatcher
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('sstart_scheduled_messages', start_scheduled_messages, has_args=None))
+    application.add_handler(CommandHandler('start_scheduled_messages', start_scheduled_messages, has_args=None))
     application.add_handler(CommandHandler('new', send_random_message))
     application.add_handler(CommandHandler('stop_scheduled_messages', stop_scheduled_messages))
     application.add_handler(CommandHandler('list', list_scheduled_jobs))
