@@ -1,6 +1,6 @@
 import logging
-from telegram import Bot, Update
-from telegram.ext import CallbackContext, ContextTypes, Updater, CommandHandler, Application
+from telegram import Update
+from telegram.ext import ContextTypes, CommandHandler, Application
 import schedule
 import time
 import threading
@@ -8,9 +8,7 @@ import random
 from functools import partial
 from dotenv import load_dotenv
 import os
-from queue import Queue
 import asyncio
-import aioschedule
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.WARN)
