@@ -1,3 +1,9 @@
-runtime_options: {client_version: '2', version: 2, server_spec: null}
+db_schema:
+  table_1:
+    client: none
+    server: full
+    columns: []
+    title: Table 1
 native_deps: {head_html: "\n<style>\n  .anvil-panel-section-container { padding: 0\
     \ 15px; }\n</style>\n"}
+runtime_options: {client_version: '2', version: 2, server_spec: null}
