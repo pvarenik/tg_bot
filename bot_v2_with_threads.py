@@ -1,6 +1,7 @@
 # Importing necessary libraries and modules
 import logging
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, Application
 import schedule
@@ -12,6 +13,8 @@ from dotenv import load_dotenv
 import os
 import asyncio
 import json
+import pytz
+import re
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.WARN)
@@ -26,6 +29,12 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 # Define a dictionary to store the scheduled jobs for each chat
 scheduled_jobs = {}
 
+# Define a default time
+DEFAULT_TIME = '09:00'
+
+# Define a default time zone
+DEFAULT_TIME_ZONE = 'Europe/Minsk'
+
 # Defining an asynchronous function to handle "/start" command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
@@ -33,7 +42,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Varenik Shutit -  a bot for receiving witty jokes or for their scheduled delivery
 
 /start - Information.
-/start_scheduled_messages [time] [time_zone]- Start scheduling messages. If no time is provided, it defaults to 9:00 and Europe/Minsk.
+/start_scheduled_messages [time HH:MM(:SS)] [time_zone]- Start scheduling messages. If no time is provided, it defaults to 9:00 and Europe/Minsk.
 /new - Send a random message immediately.
 /stop_scheduled_messages - Stop the scheduled messages in the current chat.
 /list - List of scheduled jobs.
@@ -43,21 +52,46 @@ Varenik Shutit -  a bot for receiving witty jokes or for their scheduled deliver
 Вареник Шутит - бот для получения остроумных шуток или для их запланированной отправки
 
 /start - Информация.
-/start_scheduled_messages [время] [часовой_пояс] - Начать планирование сообщений. Если время не указано, оно по умолчанию будет 9:00 и Europe/Minsk.
+/start_scheduled_messages [время HH:MM(:SS)] [часовой_пояс] - Начать планирование сообщений. Если время не указано, оно по умолчанию будет 9:00 и Europe/Minsk.
 /new - Отправить случайное сообщение немедленно.
 /stop_scheduled_messages - Остановить запланированные сообщения в текущем чате.
 /list - Список запланированных рассылок.
     """
     await context.bot.send_message(chat_id=chat_id, text=message)
+    
 
 # Defining an asynchronous function to handle "/start_scheduled_messages" command
 async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.warning(f"Scheduled message to {update.effective_chat}")
     chat_id = update.effective_chat.id
-    job_time = context.args[0] if len(context.args) > 0 else '09:00'
-    job_tz = context.args[1] if len(context.args) > 1 else 'Europe/Minsk'
+    # Time pattern
+    incorrect_time_format = ""
+    incorrect_time_zone_format = ""
+    pattern = re.compile("^(2[0-3]|[01][0-9]):[0-5][0-9](:[0-5][0-9])?$")
+    # Check if input string is correct time
+    if len(context.args) > 0:
+        if pattern.match(context.args[0]):
+            job_time = context.args[0]
+        else:
+            job_time = DEFAULT_TIME
+            incorrect_time_format = "You have entered time in incorrect format HH:MM(:SS). The default value will be used.\nВы ввели время в непраильном формате (HH:MM(:SS). Будет использоваться значение по умолчанию."
+    else:
+        job_time = DEFAULT_TIME
+        incorrect_time_format = "You have not entered the time value. The default value will be used.\nВы не ввели значение времени. Будет использоваться значение по умолчанию."
+    
+    # Check if input string is correct time zone
+    if len(context.args) > 1:
+        if job_tz not in pytz.all_timezones:
+            job_tz = DEFAULT_TIME_ZONE
+            incorrect_time_zone_format = "You have entered time zone in incorrect format Region/City. The default value will be used.\nВы ввели время в непраильном формате Region/City. Будет использоваться значение по умолчанию."
+        else:
+            job_tz = context.args[1]
+    else:
+        job_tz = DEFAULT_TIME_ZONE
+        incorrect_time_zone_format = "You have not entered the time zone value. The default value will be used.\nВы не ввели значение часового пояса. Будет использоваться значение по умолчанию."
+    
     schedule_message(context.bot, chat_id, job_time, job_tz)
-    await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages will start at {job_time} {job_tz}.\nРассылка сообщений будет осуществляться в {job_time} {job_tz}")
+    await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages will start at {job_time} {job_tz}.\nРассылка сообщений будет осуществляться в {job_time} {job_tz}\n\n<span class='tg-spoiler'>{incorrect_time_format}\n\n{incorrect_time_zone_format}</span>", parse_mode=ParseMode.HTML)
     
 # Function to save scheduled jobs to a file
 def save_scheduled_jobs(file_path='scheduled_jobs.json'):
@@ -136,7 +170,7 @@ def read_messages_from_file(file_path='content.txt'):
 
 # Function to schedule a message
 def schedule_message(bot, chat_id, job_time, job_tz):    
-    job_name = f'daily-message-{chat_id}'
+    job_name = f'daily-message-{chat_id}'        
     send_scheduled_message_partial = partial(run_scheduled_message_thread, bot=bot, chat_id=chat_id)
     schedule.every().day.at(job_time, job_tz).do(send_scheduled_message_partial).tag(job_name)
     
