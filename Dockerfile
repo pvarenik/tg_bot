@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --upgrade pip
+RUN pip install --upgrade --root-user-action=ignore pip
 
 RUN pip install -r requirements.txt
 

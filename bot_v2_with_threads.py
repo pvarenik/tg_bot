@@ -1,6 +1,7 @@
 # Importing necessary libraries and modules
 import logging
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, Application
 import schedule
 import time
@@ -91,8 +92,17 @@ def send_scheduled_message(bot, chat_id):
         try:
             loop.run_until_complete(bot.send_message(chat_id=chat_id, text=random_message))
             loop.stop()
+        except BadRequest as ex:
+            if(ex.message == "Chat not found"):
+                del scheduled_jobs[str(chat_id)]
+                print(f"Chat {chat_id} is not found and would be deleted.")
+                # Save the scheduled jobs to a file
+                save_scheduled_jobs()
+            else:
+                print(f"New BadRequest exception were occured: {ex.message}")
+                continue
         except Exception as error:
-            print(f"An exception number {try_count} occurred: {error}")
+            print(f"{error} - An exception in chat {chat_id} number {try_count} occurred: {error}")
             try_count += 1
             asyncio.sleep(random.randint(0, 9))
             continue
