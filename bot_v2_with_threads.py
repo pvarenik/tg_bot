@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 import os
 import asyncio
 import json
-import random
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.WARN)
