@@ -199,7 +199,7 @@ def run_scheduler():
 
 # Defining the main function to start the bot and scheduler threads
 def main():
-    print(f'Bot is starting...')    
+    print('Bot is starting...')    
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Load the scheduled jobs from a file
@@ -220,7 +220,7 @@ def main():
     schedule_thread = threading.Thread(target=run_scheduler)
     schedule_thread.start()
     
-    print(f'Bot has been started.')
+    print('Bot has been started.')
     application.run_polling(allowed_updates=Update.ALL_TYPES)
     
 if __name__ == '__main__':
