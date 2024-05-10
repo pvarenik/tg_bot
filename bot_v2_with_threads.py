@@ -81,7 +81,7 @@ async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT
     
     # Check if input string is correct time zone
     if len(context.args) > 1:
-        if job_tz not in pytz.all_timezones:
+        if context.args[1] not in pytz.all_timezones:
             job_tz = DEFAULT_TIME_ZONE
             incorrect_time_zone_format = "You have entered time zone in incorrect format Region/City. The default value will be used.\nВы ввели время в непраильном формате Region/City. Будет использоваться значение по умолчанию."
         else:
