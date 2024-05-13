@@ -9,4 +9,4 @@ def health():
 
 if __name__ == '__main__':
     app.wsgi_app = LoggingMiddleware(app.wsgi_app)
-    app.run(debug=True, port=8000)()
+    app.run(debug=True, port=8000)
