@@ -190,7 +190,7 @@ def read_from_DB():
     engine = create_engine(DATABASE_URI)
 
     # Define SQL query
-    get_jokes = text("SELECT jokes FROM test")
+    get_jokes = text("SELECT jokes FROM jokes")
     get_scheduled_jobs = text("SELECT schedule FROM schedule")
 
     try:
