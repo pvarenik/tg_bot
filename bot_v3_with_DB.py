@@ -115,7 +115,7 @@ def load_scheduled_jobs(bot, file_path='scheduled_jobs.json'):
         logger.warn(f'The file {file_path} does not exist.')
         
 # Function to load scheduled jobs from a DB
-def load_scheduled_jobs_from_DB(bot):
+def schedule_jobs_from_DB(bot):
     for chat_id in scheduled_jobs:
         for job_time in scheduled_jobs[chat_id]:
             schedule_message(bot, chat_id, job_time[0], job_time[1])
@@ -199,7 +199,7 @@ def read_from_DB():
             jokes = connection.execute(get_jokes)
 
             # Fetch all the rows
-            messages = jokes.fetchall()
+            messages_from_DB = jokes.fetchall()
                 
             jobs = connection.execute(get_scheduled_jobs)
             scheduled_jobs_raw = jobs.fetchone()
@@ -213,7 +213,7 @@ def read_from_DB():
         # Close the connection
         engine.dispose()
         print("PostgreSQL connection is closed")
-    return [messages, scheduled_jobs_from_DB]
+    return [messages_from_DB, scheduled_jobs_from_DB]
 
 # Function to write to a DB
 def write_to_DB():
@@ -293,7 +293,7 @@ def main():
     messages, scheduled_jobs = DB_data
     
     # Load the scheduled jobs from a file
-    load_scheduled_jobs_from_DB(application.bot)
+    schedule_jobs_from_DB(application.bot)
     
     # Register the command handlers with the dispatcher
     application.add_handler(CommandHandler('start', start))
