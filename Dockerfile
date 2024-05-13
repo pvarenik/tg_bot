@@ -10,4 +10,4 @@ RUN pip install -r requirements.txt
 
 #COPY . .
 
-CMD [ "python", "-u", "bot_v2_with_threads.py" ]
+CMD [ "python", "-u", "bot_v3_with_DB.py" ]
