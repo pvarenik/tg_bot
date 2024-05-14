@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Get the Telegram bot token from the environment variable
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 
 # Connection string for the PostgreSQL database
-DB_CONNECTION_STRING = os.getenv('DB_CONNECTION_STRING')
+DB_CONNECTION_STRING = os.environ.get('DB_CONNECTION_STRING')
 
 # Define a dictionary to store the scheduled jobs for each chat
 scheduled_jobs = {}
