@@ -1,2 +1,7 @@
 .env
 content.txt
+.env
+content copy.txt
+scheduled_jobs copy.json
+scheduled_jobs.json
+__pycache__/*
