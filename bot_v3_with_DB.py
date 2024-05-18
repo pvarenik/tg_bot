@@ -130,6 +130,7 @@ async def send_random_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     
 # Function to send a scheduled message
 def send_scheduled_message(bot, chat_id):
+    logger.warning(f"Scheduled message to {chat_id}")
     random_message = random.choice(messages)
     random_message = str(random_message[0])
     try_count = 0
