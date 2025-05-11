@@ -1,23 +1,23 @@
-# Importing necessary libraries and modules
 import logging
-from telegram import Update
-from telegram.constants import ParseMode
-from telegram.error import BadRequest
-from telegram.ext import ContextTypes, CommandHandler, Application
-import schedule
 import time
 import threading
 import random
-from functools import partial
-from dotenv import load_dotenv
 import os
+import re
+from functools import partial
 import asyncio
 import json
 import pytz
-import re
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.error import BadRequest, Forbidden
+from telegram.ext import ContextTypes, CommandHandler, Application
+import schedule
+from dotenv import load_dotenv
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.WARN)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.WARN)
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
@@ -29,6 +29,9 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 # Define a dictionary to store the scheduled jobs for each chat
 scheduled_jobs = {}
 
+# Define a global variable to store messages
+messages = []
+
 # Define a default time
 DEFAULT_TIME = '09:00'
 
@@ -36,6 +39,8 @@ DEFAULT_TIME = '09:00'
 DEFAULT_TIME_ZONE = 'Europe/Minsk'
 
 # Defining an asynchronous function to handle "/start" command
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     message = """
@@ -58,11 +63,11 @@ Varenik Shutit -  a bot for receiving witty jokes or for their scheduled deliver
 /list - Список запланированных рассылок.
     """
     await context.bot.send_message(chat_id=chat_id, text=message)
-    
+
 
 # Defining an asynchronous function to handle "/start_scheduled_messages" command
 async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.warning(f"Scheduled message to {update.effective_chat}")
+    logger.warning("Scheduled message to %s", update.effective_chat)
     chat_id = update.effective_chat.id
     # Time pattern
     incorrect_time_format = ""
@@ -78,7 +83,7 @@ async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT
     else:
         job_time = DEFAULT_TIME
         incorrect_time_format = "You have not entered the time value. The default value will be used.\nВы не ввели значение времени. Будет использоваться значение по умолчанию."
-    
+
     # Check if input string is correct time zone
     if len(context.args) > 1:
         if context.args[1] not in pytz.all_timezones:
@@ -89,68 +94,93 @@ async def start_scheduled_messages(update: Update, context: ContextTypes.DEFAULT
     else:
         job_tz = DEFAULT_TIME_ZONE
         incorrect_time_zone_format = "You have not entered the time zone value. The default value will be used.\nВы не ввели значение часового пояса. Будет использоваться значение по умолчанию."
-    
+
     schedule_message(context.bot, chat_id, job_time, job_tz)
     await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages will start at {job_time} {job_tz}.\nРассылка сообщений будет осуществляться в {job_time} {job_tz}\n\n<span class='tg-spoiler'>{incorrect_time_format}\n\n{incorrect_time_zone_format}</span>", parse_mode=ParseMode.HTML)
-    
+
 # Function to save scheduled jobs to a file
+
+
 def save_scheduled_jobs(file_path='scheduled_jobs.json'):
-    with open(file_path, 'w') as file:
+    with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(scheduled_jobs, file)
-        
+
 # Function to load scheduled jobs from a file
+
+
 def load_scheduled_jobs(bot, file_path='scheduled_jobs.json'):
     if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             json_schedule = json.load(file)
             for chat_id in json_schedule:
                 for job_time in json_schedule[chat_id]:
                     schedule_message(bot, chat_id, job_time[0], job_time[1])
     else:
-        logger.warn(f'The file {file_path} does not exist.')
-        
+        logger.warning('The file %s does not exist.', file_path)
+
 # Defining an asynchronous function to handle "/new" command
+
+
 async def send_random_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.warning(f"Random message to {update.effective_chat}")
+    logger.warning("Random message to %s", update.effective_chat)
     chat_id = update.effective_chat.id
     random_message = random.choice(messages)
     await context.bot.send_message(chat_id=chat_id, text=random_message)
-    
+
 # Function to send a scheduled message
+
+
 def send_scheduled_message(bot, chat_id):
-    logger.warning(f"Scheduled message to {chat_id}")
+    loop = asyncio.new_event_loop()
+    chat_info = loop.run_until_complete(bot.get_chat(chat_id))
+    logger.warning("Scheduled message to %s (%s)", chat_id, chat_info.title)
     random_message = random.choice(messages)
     try_count = 0
-    while True:
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(bot.send_message(chat_id=chat_id, text=random_message))
-            loop.stop()
-        except BadRequest as ex:
-            if(ex.message == "Chat not found"):
-                del scheduled_jobs[str(chat_id)]
-                print(f"Chat {chat_id} is not found and would be deleted.")
-                # Save the scheduled jobs to a file
-                save_scheduled_jobs()
-            else:
-                print(f"New BadRequest exception were occured: {ex.message}")
-                continue
-        except Exception as error:
-            print(f"{error} - An exception in chat {chat_id} number {try_count} occurred: {error}")
-            try_count += 1
-            asyncio.sleep(random.randint(0, 9))
-            continue
-        finally:
-            loop.stop()
-        break    
+    # while True:
+        # loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(bot.send_message(
+            chat_id=chat_id, text=random_message))
+        loop.stop()
+    except (BadRequest, Forbidden) as ex:
+        if ex.message in ["Chat not found",
+                            "Forbidden: bot was kicked from the chat",
+                            "Forbidden: bot was kicked from the group chat",
+                            "Forbidden: bot was blocked by the user"]:
+            del scheduled_jobs[str(chat_id)]
+            logger.warning(
+                "Chat %s (%s) is not found or bot was removed. Deleting from scheduled jobs.", chat_id, chat_info.title)
+            # Save the scheduled jobs to a file
+            save_scheduled_jobs()
+            schedule.clear(f'daily-message-{chat_id}')
+            # load_scheduled_jobs(bot)
+        logger.error(
+            "New BadRequest exception occurred: %s", ex.message)
+    except (asyncio.TimeoutError, ConnectionError) as error:
+        logger.error(
+            "%s - A network-related exception in chat %s (%s) number %s occurred: %s", error, chat_id, chat_info.title, try_count, error)
+        try_count += 1
+        asyncio.sleep(random.randint(0, 9))
+    except (RuntimeError, ValueError, TypeError) as error:  # Replace with specific exceptions
+        logger.error(
+            "%s - An unexpected exception in chat %s (%s) number %s occurred: %s", error, chat_id, chat_info.title, try_count, error)
+        try_count += 1
+        asyncio.sleep(random.randint(0, 9))
+    finally:
+        loop.stop()
 
 # Function to run scheduled message in a separate thread
+
+
 def run_scheduled_message_thread(bot, chat_id):
-    send_scheduled_message_partial = partial(send_scheduled_message, bot=bot, chat_id=chat_id)
+    send_scheduled_message_partial = partial(
+        send_scheduled_message, bot=bot, chat_id=chat_id)
     schedule_thread = threading.Thread(target=send_scheduled_message_partial)
     schedule_thread.start()
 
 # Defining an asynchronous function to handle "/stop_scheduled_messages" command
+
+
 async def stop_scheduled_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     job_name = f'daily-message-{chat_id}'
@@ -158,11 +188,13 @@ async def stop_scheduled_messages(update: Update, context: ContextTypes.DEFAULT_
     await context.bot.send_message(chat_id=chat_id, text="Scheduled messages have been stopped in this chat.\nРассылка сообщений остановлена в этом чате")
     if str(chat_id) in scheduled_jobs:
         del scheduled_jobs[str(chat_id)]
-        
+
     # Save the scheduled jobs to a file
     save_scheduled_jobs()
 
 # Function to read messages from a file
+
+
 def read_messages_from_file(file_path='content.txt'):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -170,59 +202,77 @@ def read_messages_from_file(file_path='content.txt'):
     return messages
 
 # Function to schedule a message
-def schedule_message(bot, chat_id, job_time, job_tz):    
-    job_name = f'daily-message-{chat_id}'        
-    send_scheduled_message_partial = partial(run_scheduled_message_thread, bot=bot, chat_id=chat_id)
-    schedule.every().day.at(job_time, job_tz).do(send_scheduled_message_partial).tag(job_name)
-    
+
+
+def schedule_message(bot, chat_id, job_time, job_tz):
+    job_name = f'daily-message-{chat_id}'
+    send_scheduled_message_partial = partial(
+        run_scheduled_message_thread, bot=bot, chat_id=chat_id)
+    schedule.every().day.at(job_time, job_tz).do(
+        send_scheduled_message_partial).tag(job_name)
+
     # Add the job to the list of scheduled jobs for the chat
     if str(chat_id) not in scheduled_jobs:
         scheduled_jobs[str(chat_id)] = []
     scheduled_jobs[str(chat_id)].append([job_time, job_tz])
-    
+
     # Save the scheduled jobs to a file
     save_scheduled_jobs()
 
 # Defining an asynchronous function to handle "/list" command
+
+
 async def list_scheduled_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if str(chat_id) in scheduled_jobs:
-        job_list = "\n".join([f"- {time}" for time in scheduled_jobs[str(chat_id)]])
-        await context.bot.send_message(chat_id=chat_id, text=f"Scheduled messages for this chat:\nЗапланированы сообщения:\n{job_list}")
+        job_list = "\n".join(
+            [f"- {time}" for time in scheduled_jobs[str(chat_id)]])
+        await context.bot.send_message(chat_id=chat_id, 
+                                       text=f"Scheduled messages for this chat:\nЗапланированы сообщения:\n{job_list}")
     else:
-        await context.bot.send_message(chat_id=chat_id, text="No scheduled messages for this chat.\nНет запланированных сообщений")
-    
+        await context.bot.send_message(chat_id=chat_id, 
+                                       text="No scheduled messages for this chat.\nНет запланированных сообщений")
+
 # Function to run the scheduler in a separate thread
+
+
 def run_scheduler():
     while True:
         schedule.run_pending()
         time.sleep(30)
 
 # Defining the main function to start the bot and scheduler threads
+
+
 def main():
-    print('Bot is starting...')    
+    print('Bot is starting...')
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Load the scheduled jobs from a file
     load_scheduled_jobs(application.bot)
-    
+
     # Load messages
     global messages
     messages = read_messages_from_file()
-    
+
     # Register the command handlers with the dispatcher
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('start_scheduled_messages', start_scheduled_messages, has_args=None))
+    application.add_handler(CommandHandler('info', start))
+    application.add_handler(CommandHandler('readme', start))
+    application.add_handler(CommandHandler(
+        'start_scheduled_messages', start_scheduled_messages, has_args=None))
     application.add_handler(CommandHandler('new', send_random_message))
-    application.add_handler(CommandHandler('stop_scheduled_messages', stop_scheduled_messages))
+    application.add_handler(CommandHandler(
+        'stop_scheduled_messages', stop_scheduled_messages))
     application.add_handler(CommandHandler('list', list_scheduled_jobs))
 
     # Run the scheduler in a separate thread
     schedule_thread = threading.Thread(target=run_scheduler)
     schedule_thread.start()
-    
+
     print('Bot has been started.')
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-    
+
+
 if __name__ == '__main__':
     main()
